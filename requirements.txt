@@ -10,3 +10,5 @@ propcache==0.3.2
 typing_extensions==4.14.1
 yarl==1.20.1
 flask
+pillow
+
