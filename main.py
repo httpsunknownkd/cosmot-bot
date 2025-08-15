@@ -604,8 +604,8 @@ async def on_message(message):
         xp_data[guild_id][user_id]["streak_day"] = 1
     xp_data[guild_id][user_id]["last_activity"] = now
 
-    xp_data[guild_id][user_id]["xp"] += gained_xp
-    xp_data[guild_id][user_id]["breakdown"]["chat"] += gained_xp
+    xp_data[guild_id][user_id]["xp"] += xp_earned
+    xp_data[guild_id][user_id]["breakdown"]["chat"] += xp_earned
 
     # Level Up
     level = xp_data[guild_id][user_id]["level"]
