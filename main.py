@@ -27,6 +27,17 @@ VC_HEARTBEAT_XP = 0.15               # Every heartbeat if still in VC
 AUTOSAVE_MINUTES = 10
 
 VERBOSE_LOGS = False                # flip to True if you need spammy prints
+
+# --- XP computation function ---
+def compute_message_xp(message, profile):
+    now = int(time.time())
+    last_award = profile.get("last_msg_xp", 0)
+    if now - last_award < MESSAGE_XP_COOLDOWN_SEC:
+        return 0
+
+    xp = MESSAGE_XP_FIXED
+    profile["last_msg_xp"] = now
+    return xp
         
 # --- Intents Setup ---
 intents = discord.Intents.default()
