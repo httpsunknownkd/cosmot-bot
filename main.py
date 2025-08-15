@@ -317,7 +317,7 @@ async def announce(ctx, *, input_message: str):
             print("⚠️ No valid image found in attachment.")
 
         # Send embed
-        sent = await ctx.send(embed=embed)
+        sent = await ctx.send(content="@everyone", embed=embed)
 
         # ➕ Add emoji reactions
         for emoji in emojis:
