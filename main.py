@@ -1037,7 +1037,49 @@ async def leaderboard(ctx):
 async def announce_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
-        
+
+@bot.command(name="helpme")
+@commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
+async def helpme(ctx):
+    embed = discord.Embed(
+        title=" :cosmos: ♯ 𝗰𝗼𝘀𝗺𝗼𝘀 𝗯𝗼𝘁 𝗰𝗼𝗺𝗺𝗮𝗻𝗱𝘀 .ᐟ",
+        description="welcome to the soup! the commands below will help you swim, float, and maybe win a race or two.",
+        color=discord.Color.from_str("##E75480")
+    )
+
+    embed.add_field(
+        name="💬 ♯ 𝗴𝗲𝗻𝗲𝗿𝗮𝗹 𝗰𝗼𝗺𝗺𝗮𝗻𝗱𝘀 .ᐟ",
+        value=(
+            "`!say` — make me say something\n"
+            "`!huy` — ping the bot in the most sabaw way\n"
+            "`!boosters` — see server boosters appreciation board\n"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="📈 ♯ 𝘅𝗽 𝗮𝗻𝗱 𝗹𝗲𝘃𝗲𝗹𝘀 .ᐟ",
+        value=(
+            "`!frag` — check your xp and level\n"
+            "`!topfraggers` — leaderboard of chaos (level & xp)\n"
+            "`!vcstats` — see your current vc time & xp\n"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="🎯 ♯ 𝗶𝗻𝘁𝗲𝗿𝗮𝗰𝘁𝗶𝘃𝗲 𝗰𝗼𝗺𝗺𝗮𝗻𝗱𝘀 .ᐟ",
+        value=(
+            "`!roast` — delivers the perfect insult cocktail: 2 parts wit, 1 part chaos.\n"
+            "`!sabaw` — for when your brain is soup and you need the words to prove it.\n"
+            "`!who` — who to blame? randomly selects someone to take the fall. democracy, but chaotic.\n"
+        ),
+        inline=False
+    )
+
+    embed.set_footer(text="Pro tip: XP is earned by chatting, reacting, and VC-ing. Stay active, stay sabaw.")
+    await ctx.send(embed=embed)
+    
 # --- Run Bot ---
 keep_alive()
 
