@@ -18,11 +18,12 @@ MESSAGE_XP_FIXED = 2
 MESSAGE_XP_COOLDOWN_SEC = 30        # Per-user anti-spam cooldown
 
 REACTION_XP = 1
-REACTION_XP_COOLDOWN_SEC = 60       # Per-user anti-spam cooldown
+REACTION_XP_COOLDOWN_SEC = 30       # Per-user anti-spam cooldown
 
 VC_XP_PER_MINUTE_ON_LEAVE = 0.25    # When session ends
 VC_HEARTBEAT_INTERVAL_SEC = 300     # 5 minutes
-VC_HEARTBEAT_XP = 0.15               # Every heartbeat if still in VC
+VC_HEARTBEAT_XP = 0.5
+VC_XP_COOLDOWN_SEC = 300# Every heartbeat if still in VC
 
 AUTOSAVE_MINUTES = 10
 
@@ -332,6 +333,7 @@ async def announce(ctx, *, input_message: str):
         print("‼️ ANN ERROR:", e)
 
 @bot.command(name="say")
+@commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def say_plain(ctx, *, message):
     emojis, text, title, image_url = parse_announcement_input(message)
 
@@ -347,7 +349,12 @@ async def say_plain(ctx, *, message):
         except discord.HTTPException:
             if VERBOSE_LOGS:
                 print(f"⚠️ Could not add emoji: {emoji}")
-
+# Cooldown error handler
+@announce.error
+async def announce_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
+        
 # --- Boosters ---
 @bot.command(name="boosters")
 async def boosters(ctx):
@@ -378,6 +385,7 @@ async def boosters(ctx):
     
 # --- Test Drive ---
 @bot.command(name="huy")
+@commands.cooldown(rate=1, per=30, type=commands.BucketType.user) 
 async def test_bot(ctx):
     thinking = await ctx.send("🤖 checking if bot is breathing...")
     await asyncio.sleep(1.2)
@@ -395,9 +403,15 @@ async def test_bot(ctx):
 
     await asyncio.sleep(1)
     await thinking.edit(content=random.choice(responses))
-
+    
+@announce.error
+async def announce_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
+        
 # --- Random Interactive Command ---
 @bot.command(name="sabaw")
+@commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def sabaw_line(ctx):
     global last_sabaw_line
     global last_sabaw_intro
@@ -485,8 +499,14 @@ async def sabaw_line(ctx):
     await asyncio.sleep(1.5)
     await thinking.edit(content=intro)
     await ctx.send(f"> {sabaw}")
-    
-@bot.command()
+
+@announce.error
+async def announce_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
+        
+@bot.command(name="who")
+@commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def who(ctx):
     online_members = [
         m for m in ctx.guild.members
@@ -525,7 +545,13 @@ async def who(ctx):
     
     await ctx.send(random.choice(roast_lines))
 
+@announce.error
+async def announce_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
+        
 @bot.command(name="roast")
+@commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def roast(ctx, member: Optional[discord.Member] = None):
     target = member or ctx.author
 
@@ -588,6 +614,11 @@ async def roast(ctx, member: Optional[discord.Member] = None):
 
     await ctx.send(random.choice(roasts))
 
+@announce.error
+async def announce_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
+        
 # --- Message for XP Tracking ---
 @bot.event
 async def on_message(message):
@@ -607,13 +638,13 @@ async def on_message(message):
 
     now = int(time.time())
         
-    last_activity = xp_data[guild_id][user_id].get("last_activity", 0)
+    last_activity = profile.get("last_activity", 0)
     if now - last_activity >= 86400 and now - last_activity < 172800:
-        xp_data[guild_id][user_id]["streak_day"] += 1
-        xp_data[guild_id][user_id]["xp"] += DAILY_STREAK_BONUS
+        profile["streak_day"] += 1
+        profile["xp"] += DAILY_STREAK_BONUS
     elif now - last_activity >= 172800:
-        xp_data[guild_id][user_id]["streak_day"] = 1
-    xp_data[guild_id][user_id]["last_activity"] = now
+        profile["streak_day"] = 1
+    profile["last_activity"] = now
 
     profile["xp"] += gained_xp
     profile["breakdown"]["chat"] += gained_xp
@@ -696,21 +727,31 @@ async def on_reaction_add(reaction, user):
     user_id = str(user.id)
 
     ensure_xp_profile(guild_id, user_id)
+    profile = xp_data[guild_id][user_id]
 
-    bonus_xp = 1
-    xp_data[guild_id][user_id]["xp"] += bonus_xp
+    now = int(time.time())
     
-    # Debug-safe way to update breakdown
-    if "breakdown" not in xp_data[guild_id][user_id]:
-        xp_data[guild_id][user_id]["breakdown"] = {}
-    if "reaction" not in xp_data[guild_id][user_id]["breakdown"]:
-        xp_data[guild_id][user_id]["breakdown"]["reaction"] = 0
+    # --- Cooldown check ---
+    last_react_time = profile.get("last_react_xp_time", 0)
+    if now - last_react_time < REACTION_XP_COOLDOWN_SEC:
+        print(f"⏱️ {user.name} reaction XP cooldown: {REACTION_XP_COOLDOWN_SEC - (now - last_react_time)}s left")
+        return  # Still on cooldown → no XP
 
-    xp_data[guild_id][user_id]["breakdown"]["reaction"] += bonus_xp
+    profile["last_react_xp_time"] = now
+
+    # --- Award XP ---
+    profile["xp"] += REACTION_XP
+    
+    if "breakdown" not in profile:
+        profile["breakdown"] = {}
+    if "reaction" not in profile["breakdown"]:
+        profile["breakdown"]["reaction"] = 0
+
+    profile["breakdown"]["reaction"] += REACTION_XP
     save_xp()
 
-    print(f"🔁 +{bonus_xp} XP from reaction by {user.name} in {reaction.message.channel.name}")
-
+    print(f"🔁 +{REACTION_XP} XP from reaction by {user.name} in {reaction.message.channel.name}")
+    
 # --- VC Join/Leave Tracking ---
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -755,7 +796,7 @@ async def on_voice_state_update(member, before, after):
                 print(f"⏱️ {member.name} was in VC too short to earn XP.")
 
 # --- Track VC Duration ---
-@tasks.loop(seconds=1800)
+@tasks.loop(seconds=300)
 async def track_vc_duration():
     now = asyncio.get_event_loop().time()
 
@@ -764,15 +805,26 @@ async def track_vc_duration():
         guild_id = str(guild.id)
 
         ensure_xp_profile(guild_id, user_id)
-        xp_earned = 0.5  
-        xp_data[guild_id][user_id]["xp"] += xp_earned
+        profile = xp_data[guild_id][user_id]
+        
+        # --- Cooldown check ---
+        last_vc_xp_time = profile.get("last_vc_xp_time", 0)
+        if now - last_vc_xp_time < VC_XP_COOLDOWN_SEC:
+            remaining = int(VC_XP_COOLDOWN_SEC - (now - last_vc_xp_time))
+            print(f"⏱️ Skipping VC XP for {guild.get_member(int(user_id)).display_name}, {remaining}s left on cooldown.")
+            continue
 
-        if "breakdown" not in xp_data[guild_id][user_id]:
-            xp_data[guild_id][user_id]["breakdown"] = {}
-        if "vc" not in xp_data[guild_id][user_id]["breakdown"]:
-            xp_data[guild_id][user_id]["breakdown"]["vc"] = 0
+        # --- Award XP ---
+        xp_earned = 0.5
+        profile["xp"] += xp_earned
+        profile["last_vc_xp_time"] = now
 
-        xp_data[guild_id][user_id]["breakdown"]["vc"] += xp_earned
+        if "breakdown" not in profile:
+            profile["breakdown"] = {}
+        if "vc" not in profile["breakdown"]:
+            profile["breakdown"]["vc"] = 0
+        profile["breakdown"]["vc"] += xp_earned
+        
         save_xp()
 
         member = guild.get_member(int(user_id))
@@ -782,6 +834,7 @@ async def track_vc_duration():
 
 # --- Command: VC Stats ---
 @bot.command(name="vcstats")
+@commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def vcstats(ctx, member: Optional[discord.Member] = None):
     member = member or ctx.author
     voice_state = member.voice
@@ -849,8 +902,14 @@ async def vcstats(ctx, member: Optional[discord.Member] = None):
     if user_id not in vc_sessions:
         await ctx.send(f"⚠️ {member.mention}'s vc time wasn't tracked properly... baka na-AFK?")
 
+@announce.error
+async def announce_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
+        
 # --- Command: Check Rank ---
 @bot.command(name="frag")
+@commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def rank(ctx):
     user_id = str(ctx.author.id)
     guild_id = str(ctx.guild.id)
@@ -901,8 +960,14 @@ async def rank(ctx):
         f"{random.choice(sabaw_flavor)}"
     )
 
+@announce.error
+async def announce_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
+        
 # --- Command: Leaderboard ---
 @bot.command(name="topfraggers")
+@commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def leaderboard(ctx):
     guild_id = str(ctx.guild.id)
 
@@ -967,7 +1032,12 @@ async def leaderboard(ctx):
         )
 
     await ctx.send(embed=embed)
-    
+
+@announce.error
+async def announce_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
+        
 # --- Run Bot ---
 keep_alive()
 
