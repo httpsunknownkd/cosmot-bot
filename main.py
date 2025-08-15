@@ -8,9 +8,26 @@ import random
 import asyncio
 import discord
 from discord.ext import commands, tasks
-from typing import cast, Optional
+from typing import cast, Optional, Dict
 from discord import TextChannel
 from keep_alive import keep_alive
+
+# --- Config ---
+
+MESSAGE_XP_MIN = 1
+MESSAGE_XP_MAX = 3
+MESSAGE_XP_COOLDOWN_SEC = 30        # Per-user anti-spam cooldown
+
+REACTION_XP = 1
+REACTION_XP_COOLDOWN_SEC = 60       # Per-user anti-spam cooldown
+
+VC_XP_PER_MINUTE_ON_LEAVE = 0.25    # When session ends
+VC_HEARTBEAT_INTERVAL_SEC = 300     # 5 minutes
+VC_HEARTBEAT_XP = 0.15               # Every heartbeat if still in VC
+
+AUTOSAVE_MINUTES = 10
+
+VERBOSE_LOGS = False                # flip to True if you need spammy prints
         
 # --- Intents Setup ---
 intents = discord.Intents.default()
@@ -27,66 +44,27 @@ VERIFY_ROLE_NAME = "certified tambayers ⋆ ˙ ⟡ .ᐟ"
 WELCOME_CHANNEL_ID = 1293515009665531925    
 BOOST_ROLE_NAME = "booster ⋆ ˙ ⟡ .ᐟ"
 
-# --- Global Variables ---
-xp_data = {}
-vc_sessions = {}
+# --- State ---
+
+xp_data: Dict[str, Dict[str, dict]] = {}
+vc_sessions: Dict[str, dict] = {}
+
+# Per-user cooldown trackers
+message_cooldowns: Dict[int, float] = {}
+reaction_cooldowns: Dict[int, float] = {}
 
 # --- Load or Initialize XP Data ---
 XP_FILE = "xp_data.json"
 
 if os.path.exists(XP_FILE):
-    with open(XP_FILE, "r") as f:
-        xp_data = json.load(f)
+    try:
+        with open(XP_FILE, "r") as f:
+            xp_data = json.load(f)
+    except Exception as e:
+        print(f"❌ Failed to load XP data, starting fresh: {e}")
+        xp_data = {}
 else:
     xp_data = {}
-
-# --- Level Role Rewards ---
-level_role_rewards = {
-    10:  "💤 half-asleep NPC",
-    20:  "📡 semi-present entity",
-    30:  "🪱 bottom frag enjoyer",
-    40:  "📖 lore drop enjoyer",
-    50:  "🌀 emotionally unstable but cute",
-    60:  "🌸 passive skill: overthink",
-    70:  "🧂 passive-aggressive sender",
-    80:  "🥄 spoon-fed comms user",
-    90:  "📼 vintage trauma collector",
-    100: "🧸 unbothered, hydrated, sabog",
-    120: "🌫️ aesthetic dissociator",
-    150: "🎧 deep cuts and damage",
-    180: "🕯️ candlelit chaos",
-    200: "🌺 late-night main character",
-    250: "💌 romanticizing disconnection",
-    300: "🧍‍♂️ peak tambay form",
-    350: "💀 professionally sabog",
-    400: "🌪️ trauma arc main character",
-    450: "📷 caught in 4k overthinking",
-    500: "🌙 final form: sabog deity"
-}
-
-# --- XP Multipliers by Role ---
-XP_MULTIPLIER_ROLES = {
-    "💤 half-asleep NPC": 1.1,
-    "📡 semi-present entity": 1.2,
-    "🪱 bottom frag enjoyer": 1.3,
-    "📖 lore drop enjoyer": 1.4,
-    "🌀 emotionally unstable but cute": 1.5,
-    "🌸 passive skill: overthink": 1.6,
-    "🧂 passive-aggressive sender": 1.8,
-    "🥄 spoon-fed comms user": 2.0,
-    "📼 vintage trauma collector": 2.2,
-    "🧸 unbothered, hydrated, sabog": 2.4,
-    "🌫️ aesthetic dissociator": 2.6,
-    "🎧 deep cuts and damage": 2.8,
-    "🕯️ candlelit chaos": 3.0,
-    "🌺 late-night main character": 3.2,
-    "💌 romanticizing disconnection": 3.5,
-    "🧍‍♂️ peak tambay form": 3.8,
-    "💀 professionally sabog": 4.0,
-    "🌪️ trauma arc main character": 4.2,
-    "📷 caught in 4k overthinking": 4.5,
-    "🌙 final form: sabog deity": 5.0,
-    }
 
 # --- Save XP Data ---
 def save_xp():
@@ -104,13 +82,6 @@ def save_xp():
 async def autosave_xp():
     print("💾 Auto-saving XP data...")
     save_xp()
-    
-# --- Helper: Get XP Multiplier ---
-def get_xp_multiplier(member: discord.Member):
-    for role in member.roles:
-        if role.name in XP_MULTIPLIER_ROLES:
-            return XP_MULTIPLIER_ROLES[role.name]
-    return 1.0
 
 # --- Ensure XP Profile Exists ---
 def ensure_xp_profile(guild_id, user_id):
@@ -129,66 +100,11 @@ def ensure_xp_profile(guild_id, user_id):
                 "vc": 0
             }
         }
-
-# --- Level-Up Banner Generator ---
-async def generate_levelup_banner(user: discord.User, level: int):
-    print(f"🖼️ Generating level-up banner for {user.name} (Level {level})")
-
-    try:
-        banner_path = os.path.join("assets", "levelup.jpg")
-        banner_bg = Image.open(banner_path).convert("RGBA")
-    except Exception as e:
-        print(f"❌ Failed to load banner background: {e}")
-        return None
-
-    try:
-        async with aiohttp.ClientSession() as session:
-            print(f"📥 Fetching avatar from: {user.display_avatar.url}")
-            async with session.get(user.display_avatar.url) as resp:
-                if resp.status != 200:
-                    raise Exception(f"Failed to fetch avatar, status code: {resp.status}")
-                avatar_data = BytesIO(await resp.read())
-    except Exception as e:
-        print(f"❌ Error fetching avatar: {e}")
-        return None
-
-    try:
-        avatar_img = Image.open(avatar_data).convert("RGBA")
-        avatar_img = avatar_img.resize((150, 150))
-
-        mask = Image.new("L", (150, 150), 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0, 150, 150), fill=255)
-        avatar_img.putalpha(mask)
-
-        banner_bg.paste(avatar_img, (50, 50), avatar_img)
-
-        draw = ImageDraw.Draw(banner_bg)
-
-        try:
-            font_path = os.path.join("fonts", "editorialnew.ttf")
-            font = ImageFont.truetype(font_path, 42)
-        except Exception as e:
-            print(f"⚠️ Font load failed: {e}, using default font")
-            font = ImageFont.load_default()
-
-        draw.text((220, 90), f"{user.name} just hit LVL {level}!", fill="white", font=font)
-
-        buffer = BytesIO()
-        banner_bg.save(buffer, format="JPEG")
-        buffer.seek(0)
-
-        print("✅ Banner image successfully generated!")
-        return discord.File(buffer, filename="levelup.jpg")
-
-    except Exception as e:
-        print(f"❌ Error creating banner image: {e}")
-        return None
     
 # --- Bot Ready ---
 @bot.event
 async def on_ready():
-    print(f'{bot.user} is online and ready.')
+    print(f"🚨 Bot is ready: {bot.user} | ID: {bot.user.id}")
     bot.add_view(VerifyButton())
 
     for guild in bot.guilds:
@@ -206,7 +122,9 @@ async def on_ready():
                     "channel": vc
                 }
 
-                print(f"✅ Tracking VC session for {member.display_name} who was already in VC.")
+                if VERBOSE_LOGS:
+                    print(f"✅ Tracking VC session for {member.display_name} at startup.")
+
     if not autosave_xp.is_running():
         autosave_xp.start()
         print("💾 Autosave loop started.")
@@ -215,7 +133,7 @@ async def on_ready():
         track_vc_duration.start()
         print("⏳ VC XP loop started.")
 
-# --- Parse emojis, title, image, and message ---
+# --- Parsing Helpers ---
 def parse_announcement_input(input_str):
     parts = [part.strip() for part in input_str.split('|')]
 
@@ -228,7 +146,6 @@ def parse_announcement_input(input_str):
 
     emoji_part, title, body, image_url = parts
     emojis = emoji_part.split()
-
     return emojis, title, body, image_url
     
 # --- Welcome Event Handler ---
@@ -367,7 +284,6 @@ async def announce(ctx, *, input_message: str):
 
         ## Fallback for image
         image_url = None
-
         if ctx.message.attachments:
             attachment = ctx.message.attachments[0]
             print("📎 Attachment found:", attachment.filename)
@@ -376,7 +292,7 @@ async def announce(ctx, *, input_message: str):
             if attachment.content_type and attachment.content_type.startswith("image/"):
                 image_url = attachment.proxy_url  # important for Replit/CDN access
 
-        # Embed creation
+        # Embed Creation
         embed = discord.Embed(
             title=title if title else None,
             description=body or "*No message provided.*",
@@ -396,8 +312,10 @@ async def announce(ctx, *, input_message: str):
         for emoji in emojis:
             try:
                 await sent.add_reaction(emoji)
+                await asyncio.sleep(0.3)
             except discord.HTTPException:
-                print(f"❌ Couldn't add emoji: {emoji}")
+                if VERBOSE_LOGS:
+                    print(f"❌ Couldn't add emoji: {emoji}")
 
     except Exception as e:
         await ctx.send("⚠️ Something went wrong formatting your announcement.")
@@ -415,8 +333,10 @@ async def say_plain(ctx, *, message):
     for emoji in emojis:
         try:
             await sent.add_reaction(emoji)
+            await asyncio.sleep(0.3)
         except discord.HTTPException:
-            print(f"⚠️ Could not add emoji: {emoji}")
+            if VERBOSE_LOGS:
+                print(f"⚠️ Could not add emoji: {emoji}")
 
 # --- Boosters ---
 @bot.command(name="boosters")
@@ -424,7 +344,7 @@ async def boosters(ctx):
     await ctx.message.delete()
     boosters = [member.mention for member in ctx.guild.members if member.premium_since]
 
-    if boosters:
+    if boosters_list:
         listed = "\n".join([f"{i+1}. {mention}" for i, mention in enumerate(boosters)])
         description = (
             "behold... the chosen few who willingly gave discord their wallet and their soul — just so we can spam vc at 3am and post brainrot in HD.\n\n"
@@ -444,17 +364,14 @@ async def boosters(ctx):
 
     embed.set_image(url="https://drive.google.com/uc?export=view&id=1EiqxDE1P2GpbHMSab6pWAZwNkwvGprN_")
     embed.set_footer(text="these boosters boiled in the sabaw — now they season the soup. 🍥")
-
     await ctx.send(embed=embed)
     
 # --- Test Drive ---
 @bot.command(name="huy")
 async def test_bot(ctx):
     thinking = await ctx.send("🤖 checking if bot is breathing...")
-
     await asyncio.sleep(1.2)
     await thinking.edit(content="🧠 analyzing braincells... please wait...")
-
     await asyncio.sleep(1.5)
     latency = round(bot.latency * 1000)
 
@@ -557,7 +474,6 @@ async def sabaw_line(ctx):
     await thinking.edit(content="🩻 calculating iq deficit... please wait...")
     await asyncio.sleep(1.5)
     await thinking.edit(content=intro)
-    
     await ctx.send(f"> {sabaw}")
     
 @bot.command()
@@ -665,41 +581,28 @@ async def roast(ctx, member: Optional[discord.Member] = None):
 # --- Message for XP Tracking ---
 @bot.event
 async def on_message(message):
-    if message.author.bot:
-        return
-
-    # ✅ DM guard
-    if message.guild is None:
+    if message.author.bot or message.guild is None:
         return
         
     # 🧪 DEBUG PRINT
-    print("Message received from", message.author, "| Content:", message.content)
+    if VERBOSE_LOGS:
+        print("Message received from", message.author, "| Content:", message.content[:80])
 
 
     guild_id = str(message.guild.id)
     user_id = str(message.author.id)
-
     ensure_xp_profile(guild_id, user_id)
 
-    # Daily Streak Logic
+    now = time.time()
+
     now = int(time.time())
     last_activity = xp_data[guild_id][user_id].get("last_activity", 0)
     if now - last_activity >= 86400 and now - last_activity < 172800:
         xp_data[guild_id][user_id]["streak_day"] += 1
-        xp_data[guild_id][user_id]["xp"] += 15
+        xp_data[guild_id][user_id]["xp"] += DAILY_STREAK_BONUS
     elif now - last_activity >= 172800:
         xp_data[guild_id][user_id]["streak_day"] = 1
     xp_data[guild_id][user_id]["last_activity"] = now
-
-    # XP Multiplier
-    multiplier = 1.0
-    for role in message.author.roles:
-        if role.name.lower() in XP_MULTIPLIER_ROLES:
-            multiplier = get_xp_multiplier(message.author)
-            break
-
-    base_xp = 10
-    gained_xp = int(base_xp * multiplier)
 
     xp_data[guild_id][user_id]["xp"] += gained_xp
     xp_data[guild_id][user_id]["breakdown"]["chat"] += gained_xp
@@ -716,33 +619,11 @@ async def on_message(message):
         guild = message.guild
         member = message.author
 
-        if new_level in level_role_rewards:
-            role_name = level_role_rewards[new_level]
-            role = discord.utils.get(guild.roles, name=role_name)
-            if role:
-                await member.add_roles(role)
-                print(f"✅ Gave role '{role_name}' to {member.name}")
-            else:
-                print(f"❌ Role '{role_name}' not found on the server.")
-
-        # 🖼️ Generate the level-up banner!
-        banner = await generate_levelup_banner(user=message.author, level=new_level)
-
         # 📢 Choose the level-up channel or fallback
         levelup_channel = bot.get_channel(1397335102266277909)
         if not levelup_channel:
             print("⚠️ Level-up channel not found. Defaulting to message.channel")
             levelup_channel = message.channel
-
-        # 📨 Send the banner with embed
-        if banner and isinstance(levelup_channel, discord.TextChannel):
-            embed = discord.Embed(
-                title=f"📈 {message.author.display_name} leveled up!",
-                description=f"You're now **Level {new_level}** 🎉",
-                color=discord.Color.from_str("#E75480")
-            )
-            embed.set_image(url="attachment://levelup.jpg")
-            await levelup_channel.send(embed=embed, file=banner)
         
         unhinged_level_ups = [
             f"💥  {message.author.mention} leveled up to **Level {new_level}**! still no skills but now with more vibes.",
@@ -805,7 +686,7 @@ async def on_reaction_add(reaction, user):
 
     ensure_xp_profile(guild_id, user_id)
 
-    bonus_xp = 2
+    bonus_xp = 1
     xp_data[guild_id][user_id]["xp"] += bonus_xp
     
     # Debug-safe way to update breakdown
@@ -863,7 +744,7 @@ async def on_voice_state_update(member, before, after):
                 print(f"⏱️ {member.name} was in VC too short to earn XP.")
 
 # --- Track VC Duration ---
-@tasks.loop(seconds=300)
+@tasks.loop(seconds=1800)
 async def track_vc_duration():
     now = asyncio.get_event_loop().time()
 
@@ -872,7 +753,7 @@ async def track_vc_duration():
         guild_id = str(guild.id)
 
         ensure_xp_profile(guild_id, user_id)
-        xp_earned = 5  
+        xp_earned = 0.5  
         xp_data[guild_id][user_id]["xp"] += xp_earned
 
         if "breakdown" not in xp_data[guild_id][user_id]:
@@ -945,13 +826,10 @@ async def vcstats(ctx, member: Optional[discord.Member] = None):
             title=f"🔍 ♯ 𝘃𝗰 𝘀𝗻𝗼𝗼𝗽 𝗿𝗲𝗽𝗼𝗿𝘁 𝗳𝗼𝗿 {member.display_name} .ᐟ",
             color=discord.Color.from_str("#E75480")
         )
-
         embed.add_field(name="━━━━━━━━━━━━━━━━━━━━", value="‎", inline=False)  # Divider spacer
         embed.add_field(name="🎧 Currently Sabaw-ing in:", value=f"**{channel.name}**", inline=False)
-        embed.add_field(name="━━━━━━━━━━━━━━━━━━━━", value="‎", inline=False)  # Divider spacer
 
         embed.add_field(name="🕒 Time Elapsed:", value=f"**{minutes}m {seconds}s**", inline=True)
-        embed.add_field(name="━━━━━━━━━━━━━━━━━━━━", value="‎", inline=False)  # Divider spacer
 
         embed.add_field(name="💭 Status:", value=random_comment, inline=False)
         embed.set_footer(text="Keep slaying the vc life you little lore dropper 💅")
