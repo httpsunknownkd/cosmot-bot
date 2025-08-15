@@ -14,8 +14,7 @@ from keep_alive import keep_alive
 
 # --- Config ---
 
-MESSAGE_XP_MIN = 1
-MESSAGE_XP_MAX = 3
+MESSAGE_XP_FIXED = 2
 MESSAGE_XP_COOLDOWN_SEC = 30        # Per-user anti-spam cooldown
 
 REACTION_XP = 1
@@ -588,14 +587,15 @@ async def on_message(message):
     if VERBOSE_LOGS:
         print("Message received from", message.author, "| Content:", message.content[:80])
 
-
     guild_id = str(message.guild.id)
     user_id = str(message.author.id)
     ensure_xp_profile(guild_id, user_id)
+    profile = xp_data[guild_id][user_id]
 
-    now = time.time()
+    gained_xp = compute_message_xp(message, profile)
 
     now = int(time.time())
+        
     last_activity = xp_data[guild_id][user_id].get("last_activity", 0)
     if now - last_activity >= 86400 and now - last_activity < 172800:
         xp_data[guild_id][user_id]["streak_day"] += 1
@@ -604,17 +604,17 @@ async def on_message(message):
         xp_data[guild_id][user_id]["streak_day"] = 1
     xp_data[guild_id][user_id]["last_activity"] = now
 
-    xp_data[guild_id][user_id]["xp"] += xp_earned
-    xp_data[guild_id][user_id]["breakdown"]["chat"] += xp_earned
+    profile["xp"] += gained_xp
+    profile["breakdown"]["chat"] += gained_xp
 
-    # Level Up
-    level = xp_data[guild_id][user_id]["level"]
-    xp = xp_data[guild_id][user_id]["xp"]
+    # --- Level Up Check ---
+    level = profile["level"]
+    xp    = profile["xp"]
     next_level_xp = level * 100
-    
+
     if xp >= next_level_xp:
-        xp_data[guild_id][user_id]["level"] += 1
-        new_level = xp_data[guild_id][user_id]["level"]
+        profile["level"] += 1
+        new_level = profile["level"]
 
         guild = message.guild
         member = message.author
