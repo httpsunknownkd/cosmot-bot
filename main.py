@@ -350,8 +350,8 @@ async def say_plain(ctx, *, message):
             if VERBOSE_LOGS:
                 print(f"⚠️ Could not add emoji: {emoji}")
 # Cooldown error handler
-@announce.error
-async def announce_error(ctx, error):
+@say_plain.error
+async def say_plain_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
         
@@ -404,8 +404,8 @@ async def test_bot(ctx):
     await asyncio.sleep(1)
     await thinking.edit(content=random.choice(responses))
     
-@announce.error
-async def announce_error(ctx, error):
+@test_bot.error
+async def test_bot_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
         
@@ -500,8 +500,8 @@ async def sabaw_line(ctx):
     await thinking.edit(content=intro)
     await ctx.send(f"> {sabaw}")
 
-@announce.error
-async def announce_error(ctx, error):
+@sabaw_line.error
+async def sabaw_line_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
         
@@ -545,8 +545,8 @@ async def who(ctx):
     
     await ctx.send(random.choice(roast_lines))
 
-@announce.error
-async def announce_error(ctx, error):
+@who.error
+async def who_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
         
@@ -614,8 +614,8 @@ async def roast(ctx, member: Optional[discord.Member] = None):
 
     await ctx.send(random.choice(roasts))
 
-@announce.error
-async def announce_error(ctx, error):
+@roast.error
+async def roast_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
         
@@ -902,8 +902,8 @@ async def vcstats(ctx, member: Optional[discord.Member] = None):
     if user_id not in vc_sessions:
         await ctx.send(f"⚠️ {member.mention}'s vc time wasn't tracked properly... baka na-AFK?")
 
-@announce.error
-async def announce_error(ctx, error):
+@vcstats.error
+async def vcstats_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
         
@@ -960,8 +960,8 @@ async def rank(ctx):
         f"{random.choice(sabaw_flavor)}"
     )
 
-@announce.error
-async def announce_error(ctx, error):
+@rank.error
+async def rank_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
         
@@ -1033,8 +1033,8 @@ async def leaderboard(ctx):
 
     await ctx.send(embed=embed)
 
-@announce.error
-async def announce_error(ctx, error):
+@leaderboard.error
+async def leaderboard_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
 
@@ -1079,7 +1079,12 @@ async def helpme(ctx):
 
     embed.set_footer(text="Pro tip: XP is earned by chatting, reacting, and VC-ing. Stay active, stay sabaw.")
     await ctx.send(embed=embed)
-    
+
+@helpme.error
+async def helpme_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
+
 # --- Run Bot ---
 keep_alive()
 
