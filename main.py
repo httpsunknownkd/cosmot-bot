@@ -364,17 +364,17 @@ async def sabaw_line(ctx: commands.Context):
         "di ako nagrereply pero i feel things deeply.",
         "my discord role carries more weight than my life choices.",
         "sabog ako IRL, kaya sabaw din sa server. balance lang."
-]
+    ]
 
-# Avoid repeating the last line/intro if possible
-intro_choices = [x for x in intro_lines if x != last_sabaw_intro] or intro_lines
-line_choices = [x for x in sabaw_lines if x != last_sabaw_line] or sabaw_lines
+    # Avoid repeating the last line/intro if possible
+    intro_choices = [x for x in intro_lines if x != last_sabaw_intro] or intro_lines
+    line_choices = [x for x in sabaw_lines if x != last_sabaw_line] or sabaw_lines
 
-chosen_intro = random.choice(intro_choices)
-chosen_line = random.choice(line_choices)
+    chosen_intro = random.choice(intro_choices)
+    chosen_line = random.choice(line_choices)
 
-last_sabaw_intro = chosen_intro
-last_sabaw_line = chosen_line
+    last_sabaw_intro = chosen_intro
+    last_sabaw_line = chosen_line
         
     # dramatic sabaw bot loading
     thinking = await ctx.send("🤖 diagnosing emotional damage...")
