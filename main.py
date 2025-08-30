@@ -297,7 +297,7 @@ async def test_bot_error(ctx, error):
 # --- Random Interactive Command ---
 @bot.command(name="sabaw")
 @commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
-async def sabaw_line(ctx: comnmands.Context):
+async def sabaw_line(ctx: commands.Context):
     global last_sabaw_line
     global last_sabaw_intro
     
@@ -381,8 +381,8 @@ last_sabaw_line = chosen_line
     await asyncio.sleep(1.2)
     await thinking.edit(content="🩻 calculating iq deficit... please wait...")
     await asyncio.sleep(1.5)
-    await thinking.edit(content=intro)
-    await ctx.send(f"> {sabaw}")
+    await thinking.edit(content=chosen_intro)
+    await ctx.send(f"> {chosen_line}")
 
 @sabaw_line.error
 async def sabaw_line_error(ctx, error):
