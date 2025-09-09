@@ -134,6 +134,7 @@ async def on_member_update(before, after):
         banner_url = "https://drive.google.com/uc?export=view&id=1EiqxDE1P2GpbHMSab6pWAZwNkwvGprN_"
         embed.set_image(url=banner_url)
         embed.set_footer(text="your sparkle is now tax-deductible (not really)")
+            
         await channel.send(embed=embed)
 
 # --- Leaver ---
@@ -246,7 +247,7 @@ async def boosters(ctx):
     await ctx.message.delete()
     boosters = [member.mention for member in ctx.guild.members if member.premium_since]
 
-    if boosters_list:
+    if boosters:
         listed = "\n".join([f"{i+1}. {mention}" for i, mention in enumerate(boosters)])
         description = (
             "behold... the chosen few who willingly gave discord their wallet and their soul — just so we can spam vc at 3am and post brainrot in HD.\n\n"
