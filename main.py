@@ -113,15 +113,20 @@ async def send_verify_message(ctx):
 async def on_member_update(before, after):
     if not before.premium_since and after.premium_since:
         channel = bot.get_channel(1397335182465437697)
-        if not isinstance(channel, TextChannel):
+        if not isinstance(channel, discord.TextChannel):
             print("❌ Boost channel not found or wrong type.")
             return
             
-        booster_role_name = "booster ⋆ ˙ ⟡ .ᐟ"
-        booster_role = discord.utils.get(after.guild.roles, name=booster_role_name)
+        booster_role = discord.utils.get(after.guild.roles, name=BOOST_ROLE_NAME)
 
         if booster_role:
-            await after.add_roles(booster_role)
+            try:
+                await after.add_roles(booster_role, reason="Server boosted ✨")
+                print(f"✅ Booster role given to {after}")
+            except discord.Forbidden:
+                print(f"❌ Missing permissions to add {booster_role} to {after}")
+            except discord.HTTPException as e:
+                print(f"⚠️ Could not add role: {e}")
 
         embed = discord.Embed(
             title="🍜 ♯ 𝘀𝗮𝗯𝗮𝘄 𝘁𝗼𝗽-𝘂𝗽 𝗿𝗲𝗰𝗲𝗶𝘃𝗲𝗱 .ᐟ",
@@ -135,7 +140,13 @@ async def on_member_update(before, after):
         embed.set_image(url=banner_url)
         embed.set_footer(text="your sparkle is now tax-deductible (not really)")
             
-        await channel.send(embed=embed)
+        try:
+            await channel.send(embed=embed)
+            print(f"📢 Boost notification sent in {channel}")
+        except discord.Forbidden:
+            print("❌ Bot cannot send messages in the boost channel.")
+        except Exception as e:
+            print(f"⚠️ Unexpected error sending boost embed: {e}")
 
 # --- Leaver ---
 @bot.event
