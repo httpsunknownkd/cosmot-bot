@@ -198,7 +198,6 @@ async def announce(ctx, mode: str = None, *, input_message: str = None):
             return
 
         ## Fallback for image
-        image_url = None
         if ctx.message.attachments:
             attachment = ctx.message.attachments[0]
             print("📎 Attachment found:", attachment.filename)
