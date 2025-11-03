@@ -185,32 +185,33 @@ async def announce(ctx, mode: str = "off", *, input_message: str = None):
     try:
         # 🧠 Mention logic
         mention_mode = mode.lower() if mode else "off"
-        if mention_mode == "on":
-            mention_text = "@everyone"
-        else:
-            mention_text = ""
+        mention_text = "@everyone" if mention_mode == "on" else ""
 
         # Parse input
         emojis, title, body, image_url = parse_announcement_input(input_message)
 
-        if not title and not body and not image_url and not ctx.message.attachments:
-            await ctx.send("⚠️ You need at least a title, message, image, or emoji.")
-            return
-
-        # 🖼️ Fallback for image
+       # 🖼️ If user attaches an image, use it as fallback
         if ctx.message.attachments:
             attachment = ctx.message.attachments[0]
             print("📎 Attachment found:", attachment.filename)
             print("📷 Content type:", attachment.content_type)
 
-            if attachment.content_type and attachment.content_type.startswith("image/"):
-                image_url = attachment.url  # ✅ use .url (not proxy_url)
+            # ✅ Check both content type and file extension
+            if (
+                (attachment.content_type and attachment.content_type.startswith("image/"))
+                or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+            ):
+                image_url = attachment.url  # always works for embeds
                 print("🖼️ Embed image set to:", image_url)
             else:
                 print("⚠️ Attachment is not a valid image.")
         else:
-            image_url = None
             print("⚠️ No attachment found.")
+
+        # If user didn’t include any content
+        if not title and not body and not image_url:
+            await ctx.send("⚠️ You need at least a title, message, or image.")
+            return
 
         # 🪄 Embed creation
         embed = discord.Embed(
@@ -240,7 +241,6 @@ async def announce(ctx, mode: str = "off", *, input_message: str = None):
     except Exception as e:
         await ctx.send("⚠️ Something went wrong formatting your announcement.")
         print("‼️ ANN ERROR:", e)
-
 
 @bot.command(name="say")
 @commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
