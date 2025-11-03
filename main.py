@@ -191,7 +191,6 @@ async def announce(ctx, mode: str = None, *, input_message: str = None):
             await ctx.send("⚠️ You need to include your announcement message.")
             return
                 
-    try:
         emojis, title, body, image_url = parse_announcement_input(input_message)
 
         if not title and not body and not image_url and not ctx.message.attachments:
