@@ -203,8 +203,14 @@ async def announce(ctx, mode: str = None, *, input_message: str = None):
             print("📎 Attachment found:", attachment.filename)
             print("📷 Content type:", attachment.content_type)
 
-            if attachment.content_type and attachment.content_type.startswith("image/"):
-                image_url = attachment.proxy_url  # important for Replit/CDN access
+            if (
+                (attachment.content_type and attachment.content_type.startswith("image/"))
+                or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+            ):
+                image_url = attachment.url  # <-- FIXED LINE
+                print("🖼️ Embed image set to:", image_url)
+            else:
+                print("⚠️ Attachment is not an image.")
 
         else:
             image_url = None
