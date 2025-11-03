@@ -179,47 +179,44 @@ async def on_member_remove(member):
     
 # --- Commands ---
 @bot.command(name="ann")
-async def announce(ctx, mode: str = None, *, input_message: str = None):
+async def announce(ctx, mode: str = "off", *, input_message: str = None):
     await ctx.message.delete()
 
     try:
-        # 🧩 Determine mention mode
+        # 🧠 Mention logic
         mention_mode = mode.lower() if mode else "off"
+        if mention_mode == "on":
+            mention_text = "@everyone"
+        else:
+            mention_text = ""
 
-        # If user didn't provide message properly
-        if not input_message:
-            await ctx.send("⚠️ You need to include your announcement message.")
-            return
-                
+        # Parse input
         emojis, title, body, image_url = parse_announcement_input(input_message)
 
         if not title and not body and not image_url and not ctx.message.attachments:
             await ctx.send("⚠️ You need at least a title, message, image, or emoji.")
             return
 
-        ## Fallback for image
+        # 🖼️ Fallback for image
         if ctx.message.attachments:
             attachment = ctx.message.attachments[0]
             print("📎 Attachment found:", attachment.filename)
             print("📷 Content type:", attachment.content_type)
 
-            if (
-                (attachment.content_type and attachment.content_type.startswith("image/"))
-                or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
-            ):
-                image_url = attachment.url  # <-- FIXED LINE
+            if attachment.content_type and attachment.content_type.startswith("image/"):
+                image_url = attachment.url  # ✅ use .url (not proxy_url)
                 print("🖼️ Embed image set to:", image_url)
             else:
-                print("⚠️ Attachment is not an image.")
-
+                print("⚠️ Attachment is not a valid image.")
         else:
             image_url = None
-                
-        # Embed Creation
+            print("⚠️ No attachment found.")
+
+        # 🪄 Embed creation
         embed = discord.Embed(
             title=title if title else None,
             description=body or "*No message provided.*",
-            color=discord.Color.from_str("#E75480")
+            color=discord.Color.from_str("#E75480"),
         )
 
         if image_url:
@@ -228,13 +225,7 @@ async def announce(ctx, mode: str = None, *, input_message: str = None):
         else:
             print("⚠️ No valid image found in attachment.")
 
-        # 🧠 Mention logic
-        if mention_mode == "on":
-            mention_text = "@everyone"
-        else:
-            mention_text = ""
-                
-        # Send embed
+        # 📨 Send embed
         sent = await ctx.send(content=mention_text, embed=embed)
 
         # ➕ Add emoji reactions
@@ -249,6 +240,7 @@ async def announce(ctx, mode: str = None, *, input_message: str = None):
     except Exception as e:
         await ctx.send("⚠️ Something went wrong formatting your announcement.")
         print("‼️ ANN ERROR:", e)
+
 
 @bot.command(name="say")
 @commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
