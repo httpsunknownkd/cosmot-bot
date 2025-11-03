@@ -11,5 +11,4 @@ typing_extensions==4.14.1
 yarl==1.20.1
 flask
 pillow
---upgrade pip
 
