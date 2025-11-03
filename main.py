@@ -100,8 +100,8 @@ async def send_verify_message(ctx):
     embed = discord.Embed(
         title="🛋️   ♯ 𝗼𝗵 𝗵𝗲𝗹𝗹𝗼 𝘁𝗵𝗲𝗿𝗲, 𝘆𝗼𝘂 𝗺𝗮𝗱𝗲 𝗶𝘁  .ᐟ",
         description=(
-            "before you dive into the sabaw and explore the rest of the server, slide over to <#1396943702085206117> and grab your roles. "
-            "done? sweet. now bop the button below to verify and unlock the rest of the chaos. we’re kinda weird but we’re nice. "
+            "before you dive into the sabaw and explore the rest of the server, grab your roles above to identify yourself! "
+            "done? sweet. now bop the button below to verify yourself as certified tambayers, and unlock the rest of the chaos. we’re kinda weird but we’re nice! :p "
             "we’re happy you’re here — welcome to the hub, tambayers! 🍜"
         ),
         color=discord.Color.from_str("#E75480")
@@ -179,9 +179,18 @@ async def on_member_remove(member):
     
 # --- Commands ---
 @bot.command(name="ann")
-async def announce(ctx, *, input_message: str):
+async def announce(ctx, mode: str = None, *, input_message: str = None):
     await ctx.message.delete()
 
+    try:
+        # 🧩 Determine mention mode
+        mention_mode = mode.lower() if mode else "off"
+
+        # If user didn't provide message properly
+        if not input_message:
+            await ctx.send("⚠️ You need to include your announcement message.")
+            return
+                
     try:
         emojis, title, body, image_url = parse_announcement_input(input_message)
 
@@ -199,6 +208,9 @@ async def announce(ctx, *, input_message: str):
             if attachment.content_type and attachment.content_type.startswith("image/"):
                 image_url = attachment.proxy_url  # important for Replit/CDN access
 
+        else:
+            image_url = None
+                
         # Embed Creation
         embed = discord.Embed(
             title=title if title else None,
@@ -212,8 +224,14 @@ async def announce(ctx, *, input_message: str):
         else:
             print("⚠️ No valid image found in attachment.")
 
+        # 🧠 Mention logic
+        if mention_mode == "on":
+            mention_text = "@everyone"
+        else:
+            mention_text = ""
+                
         # Send embed
-        sent = await ctx.send(content="@everyone", embed=embed)
+        sent = await ctx.send(content=mention_text, embed=embed)
 
         # ➕ Add emoji reactions
         for emoji in emojis:
@@ -527,6 +545,7 @@ async def helpme(ctx):
             "`!say` — make me say something\n"
             "`!huy` — ping the bot in the most sabaw way\n"
             "`!boosters` — see server boosters appreciation board\n"
+            "`!helpme` — displays command info, usage guides, and bot features.\n"
         ),
         inline=False
     )
