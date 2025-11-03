@@ -180,8 +180,6 @@ async def on_member_remove(member):
 # --- Commands ---
 @bot.command(name="ann")
 async def announce(ctx, mode: str = "off", *, input_message: str = None):
-    await ctx.message.delete()
-
     try:
         # 🧠 Mention logic
         mention_mode = mode.lower() if mode else "off"
@@ -196,17 +194,13 @@ async def announce(ctx, mode: str = "off", *, input_message: str = None):
             print("📎 Attachment found:", attachment.filename)
             print("📷 Content type:", attachment.content_type)
 
-            # ✅ Check both content type and file extension
-            if (
-                (attachment.content_type and attachment.content_type.startswith("image/"))
-                or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
-            ):
-                image_url = attachment.url  # always works for embeds
-                print("🖼️ Embed image set to:", image_url)
+            if attachment.content_type and attachment.content_type.startswith("image/"):
+                image_url = attachment.url
+                print("🖼️ Using attached image:", image_url)
             else:
-                print("⚠️ Attachment is not a valid image.")
+                print("⚠️ Attachment is not an image.")
         else:
-            print("⚠️ No attachment found.")
+            print("⚠️ No image attachment found.")
 
         # If user didn’t include any content
         if not title and not body and not image_url:
@@ -238,6 +232,9 @@ async def announce(ctx, mode: str = "off", *, input_message: str = None):
                 if VERBOSE_LOGS:
                     print(f"❌ Couldn't add emoji: {emoji}")
 
+        # 🧹 Delete user command message *after* processing
+        await ctx.message.delete()
+            
     except Exception as e:
         await ctx.send("⚠️ Something went wrong formatting your announcement.")
         print("‼️ ANN ERROR:", e)
