@@ -27,6 +27,8 @@ intents.members = True  # REQUIRED for on_member_join
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+bot.add_view(VerifyButton())
+
 last_sabaw_line = None
 last_sabaw_intro = None
 
@@ -38,7 +40,6 @@ BOOST_ROLE_NAME = "booster ⋆ ˙ ⟡ .ᐟ"
 @bot.event
 async def on_ready():
     print(f"🚨 Bot is ready: {bot.user} | ID: {bot.user.id}")
-    bot.add_view(VerifyButton())
 
 # --- Parsing Helpers ---
 def parse_announcement_input(input_str):
