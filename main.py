@@ -5,7 +5,19 @@ import discord
 from discord.ext import commands
 from typing import cast, Optional
 from discord import TextChannel
-from keep_alive import keep_alive
+from threading import Thread
+from flask import Flask
+
+# --- Web server setup ---
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is alive!"
+
+def run_web():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
         
 # --- Intents Setup ---
 intents = discord.Intents.default()
@@ -560,11 +572,14 @@ async def helpme_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
 
-# --- Run Bot ---
-keep_alive()
+# --- Run Bot (Render-ready) ---
+if __name__ == "__main__":
+    # Start Flask web server to keep Render alive
+    Thread(target=run_web).start()
 
-token = os.getenv("DISCORD_TOKEN")
-if not token:
-    raise RuntimeError("❌ DISCORD_TOKEN not found! Set it in the Replit Secrets tab (🔐 icon).")
+    token = os.getenv("DISCORD_TOKEN")
+    if not token:
+        raise RuntimeError("❌ DISCORD_TOKEN not found! Set it in Render Environment Variables.")
 
-bot.run(token)
+    # Run your Discord bot
+    bot.run(token)
