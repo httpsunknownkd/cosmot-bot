@@ -396,8 +396,6 @@ async def test_bot(ctx: commands.Context):
 
     await asyncio.sleep(1)
     await thinking.edit(content=random.choice(responses))
-    except discord.HTTPException:
-        logger.exception("Failed during huy command")
     
 @test_bot.error
 async def test_bot_error(ctx, error):
