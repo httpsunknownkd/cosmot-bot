@@ -382,10 +382,9 @@ async def boosters(ctx: commands.Context):
 async def test_bot(ctx: commands.Context):
     thinking = await ctx.send("🤖 checking if bot is breathing...")
     await asyncio.sleep(1.2)
-    try:
-        await thinking.edit(content="🧠 analyzing braincells... please wait...")
-        await asyncio.sleep(1.5)
-        latency = round(bot.latency * 1000)
+    await thinking.edit(content="🧠 analyzing braincells... please wait...")
+    await asyncio.sleep(1.5)
+    latency = round(bot.latency * 1000)
 
     responses = [
         f"huy din 😐 buhay pa ako, unfortunately.\n`latency: {latency}ms`",
