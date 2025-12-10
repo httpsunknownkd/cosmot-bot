@@ -194,7 +194,7 @@ async def on_member_update(before: discord.Member, after: discord.Member):
 # --- Leaver ---
 @bot.event
 async def on_member_remove(member: discord.Member):
-    channel = bot.get_channel(GOODBYE_CHANNEL_ID
+    channel = bot.get_channel(GOODBYE_CHANNEL_ID)
     if not isinstance(channel, TextChannel):
         logger.warning("Goodbye channel not found or is not a TextChannel.")
         return
