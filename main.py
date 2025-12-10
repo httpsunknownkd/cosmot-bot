@@ -507,7 +507,7 @@ async def who(ctx: commands.Context):
         await ctx.send("⚠️ walang tao dito... server ghost town na 💀")
         return
         
-chosen = random.choice(pool)
+    chosen = random.choice(pool)
         
     roast_lines = [
         f"🔍 hmm... today we blame: {chosen.mention}",
