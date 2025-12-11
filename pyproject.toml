@@ -1,9 +1,13 @@
 [project]
-name = "python-template"
+name = "cosmos-bot"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "discord + flask project"
+authors = [
+    { name = "Gisella Katriez", email = "author@stargirlkady.ph" }
+]
 requires-python = ">=3.11"
-dependencies = []
-discord.py = "*"
-flask = "*"
+
+dependencies = [
+    "discord.py",
+    "flask"
+]
