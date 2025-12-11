@@ -9,17 +9,13 @@ from discord import TextChannel
 from threading import Thread
 from flask import Flask
 
-# ---------------------------
-# Basic configuration
-# ---------------------------
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sabaw_bot")
 
-VERBOSE_LOGS = True # Toggle verbose debug prints
-RESPONSE_CHANCE = 0.25 # Probability the autoresponder replies when a keyword matches
-USER_COOLDOWN_SECONDS = 60 # per-user cooldown for the autoresponder
+VERBOSE_LOGS = True
+RESPONSE_CHANCE = 0.25
+USER_COOLDOWN_SECONDS = 60
 
-# --- Web server setup ---
 app = Flask(__name__)
 
 @app.route('/')
@@ -30,42 +26,38 @@ def run_web():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
         
-# --- Intents Setup ---
+# Intents Setup
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
-intents.members = True  # REQUIRED for on_member_join
+intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# ---------------------------
-# Simple helpers
-# ---------------------------
 _last_sabaw_line: Optional[str] = None
 _last_sabaw_intro: Optional[str] = None
 _autoresponder_last_seen: dict = {} # user_id -> timestamp
 
-# Roles / Channel IDs (change to your server values)
+# Roles / Channel IDs
 VERIFY_ROLE_NAME = "certified tambayers ⋆ ˙ ⟡ .ᐟ"
 WELCOME_CHANNEL_ID = 1293515009665531925
 BOOST_CHANNEL_ID = 1397335182465437697
 GOODBYE_CHANNEL_ID = 1293513854466261064
 BOOST_ROLE_NAME = "booster ⋆ ˙ ⟡ .ᐟ"
     
-# --- Bot Ready ---
+# Bot Ready
 @bot.event
 async def on_ready():
-    logger.info(f"🚨 Bot is ready: {bot.user} | ID: {bot.user.id}")
+    logger.info(f"Bot is ready: {bot.user} | ID: {bot.user.id}")
     try:
         bot.add_view(VerifyButton())
     except Exception:
         logger.exception("Failed to add persistent view")
 
-# --- Parsing Helpers ---
+# Parsing Helpers
 def parse_announcement_input(input_str):
     parts = [part.strip() for part in input_str.split('|')]
-
-    # No pipes = just message body
+    
     if len(parts) == 1:
         return [], "", parts[0], ""
 
@@ -76,7 +68,7 @@ def parse_announcement_input(input_str):
     emojis = emoji_part.split()
     return emojis, title, body, image_url
     
-# --- Welcome Event Handler ---
+# Welcomer
 @bot.event
 async def on_member_join(member: discord.Member):
     channel = bot.get_channel(WELCOME_CHANNEL_ID)
@@ -84,7 +76,6 @@ async def on_member_join(member: discord.Member):
         if VERBOSE_LOGS:
             logger.warning("Welcome channel not found or not a TextChannel")
         return
-
 
     embed = discord.Embed(
         title="🛋️ ♯ 𝗯𝗮𝗸𝗶𝘁 𝗽𝗮𝗿𝗮𝗻𝗴 𝗸𝗮𝗯𝗮𝗱𝗼 𝗮𝗸𝗼 𝘀𝗮 𝗯𝗮𝗴𝗼 .ᐟ",
@@ -103,7 +94,7 @@ async def on_member_join(member: discord.Member):
     except Exception:
         logger.exception("Failed to send welcome embed")
 
-# --- Verify Button View ---
+# Verify Button View
 class VerifyButton(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -112,17 +103,17 @@ class VerifyButton(discord.ui.View):
     async def verify_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         guild = interaction.guild
         if guild is None:
-            await interaction.response.send_message("❌ This button only works in servers!", ephemeral=True)
+            await interaction.response.send_message("This button only works in servers!", ephemeral=True)
             return
 
         member = guild.get_member(interaction.user.id)
         if member is None:
-            await interaction.response.send_message("❌ Couldn’t fetch your member data!", ephemeral=True)
+            await interaction.response.send_message("Couldn’t fetch your member data!", ephemeral=True)
             return
 
         role = discord.utils.get(guild.roles, name=VERIFY_ROLE_NAME)
         if role is None:
-            await interaction.response.send_message("⚠️ Couldn't find the verify role!", ephemeral=True)
+            await interaction.response.send_message("Couldn't find the verify role!", ephemeral=True)
             return
 
         if role in member.roles:
@@ -131,7 +122,7 @@ class VerifyButton(discord.ui.View):
             await member.add_roles(role)
             await interaction.response.send_message("🍜 welcome to the hub — you’re in!", ephemeral=True)
 
-# --- Admin-Only: Send Verification Embed ---
+# Admin-Only: Send Verification
 @bot.command(name="sendverify")
 @commands.has_permissions(administrator=True)
 async def send_verify_message(ctx: commands.Context):
@@ -154,7 +145,7 @@ async def send_verify_message(ctx: commands.Context):
     except Exception:
         logger.exception("Failed to send verify embed")
 
-# --- Booster Spotted ---
+# Booster Spotted
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
     # detect boost
@@ -168,7 +159,7 @@ async def on_member_update(before: discord.Member, after: discord.Member):
         if booster_role:
             try:
                 await after.add_roles(booster_role, reason="Server boosted ✨")
-                logger.info(f"✅ Booster role given to {after}")
+                logger.info(f"Booster role given to {after}")
             except discord.Forbidden:
                 logger.warning(f"Missing permissions to add {booster_role} to {after}")
             except discord.HTTPException:
@@ -187,11 +178,11 @@ async def on_member_update(before: discord.Member, after: discord.Member):
         embed.set_footer(text="your sparkle is now tax-deductible (not really)")
         try:
             await channel.send(embed=embed)
-            logger.info("📢 Boost notification sent")
+            logger.info("Boost notification sent!")
         except Exception:
             logger.exception("Failed to send boost embed")
 
-# --- Leaver ---
+# Leaver
 @bot.event
 async def on_member_remove(member: discord.Member):
     channel = bot.get_channel(GOODBYE_CHANNEL_ID)
@@ -222,9 +213,7 @@ async def on_member_remove(member: discord.Member):
     except Exception:
         logger.exception("Failed to send goodbye embed")
 
-# ---------------------------
-# Autoresponder (safe)
-# ---------------------------
+# AUTORESPONDER
 
 AUTORESPONDER_KEYWORDS: List[str] = [
     "im bored", "i'm bored", "bored", "pagod", "i'm tired", "tired",
@@ -248,20 +237,15 @@ def _can_autorespond(user_id: int) -> bool:
 
 @bot.event
 async def on_message(message: discord.Message):
-    # Safety: ignore bots and webhooks
     if message.author.bot or message.webhook_id is not None:
         return
-
-    # Always allow commands to be processed
     await bot.process_commands(message)
 
-    # Simple autoresponder with probability and cooldown
     content = (message.content or "").lower()
 
     if any(k in content for k in AUTORESPONDER_KEYWORDS):
         if random.random() < RESPONSE_CHANCE and _can_autorespond(message.author.id):
             try:
-                # small delay to avoid spurts of messages
                 await asyncio.sleep(random.uniform(0.6, 1.5))
                 await message.reply(random.choice(AUTORESPONDER_RESPONSES), mention_author=False)
                 if VERBOSE_LOGS:
@@ -269,29 +253,26 @@ async def on_message(message: discord.Message):
             except discord.HTTPException:
                 logger.exception("Failed to autorespond")
 
-# --- Commands ---
+# COMMANDS
+# --- Announcement Command ---
 @bot.command(name="ann")
 @commands.has_permissions(administrator=True)
 async def announce(ctx: commands.Context, mode: str = "off", *, input_message: str = None):
     try:
         mention_mode = mode.lower() if mode else "off"
         mention_text = "@everyone" if mention_mode == "on" else ""
-
-        # Parse input
+        
         emojis, title, body, image_url = parse_announcement_input(input_message)
 
-       # 🖼️ If user attaches an image, use it as fallback
         if ctx.message.attachments:
             attachment = ctx.message.attachments[0]
             if attachment.content_type and attachment.content_type.startswith("image/"):
                 image_url = attachment.url
 
-        # If user didn’t include any content
         if not title and not body and not image_url:
-            await ctx.send("⚠️ You need at least a title, message, or image.")
+            await ctx.send("You need at least a title, message, or image.")
             return
 
-        # 🪄 Embed creation
         embed = discord.Embed(
             title=title if title else None,
             description=body or "*No message provided.*",
@@ -303,7 +284,6 @@ async def announce(ctx: commands.Context, mode: str = "off", *, input_message: s
 
         sent = await ctx.send(content=mention_text, embed=embed)
 
-        # ➕ Add emoji reactions
         for emoji in emojis:
             try:
                 await sent.add_reaction(emoji)
@@ -317,9 +297,10 @@ async def announce(ctx: commands.Context, mode: str = "off", *, input_message: s
             pass
             
     except Exception:
-        logger.exception("‼️ ANN ERROR")
-        await ctx.send("⚠️ Something went wrong formatting your announcement.")
+        logger.exception("ANN ERROR")
+        await ctx.send("Something went wrong formatting your announcement.")
 
+# --- Say / Chat Repeater Command ---
 @bot.command(name="say")
 @commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def say_plain(ctx: commands.Context, *, message: str):
@@ -402,7 +383,8 @@ async def test_bot_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
         
-# --- Random Interactive Command ---
+# RANDOM INTERACTIVE COMMANDS
+# --- Sabaw Command ---
 @bot.command(name="sabaw")
 @commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def sabaw_line(ctx: commands.Context):
@@ -473,7 +455,6 @@ async def sabaw_line(ctx: commands.Context):
         "sabog ako IRL, kaya sabaw din sa server. balance lang."
     ]
 
-    # Avoid repeating the last line/intro if possible
     intro_choices = [x for x in intro_lines if x != last_sabaw_intro] or intro_lines
     line_choices = [x for x in sabaw_lines if x != last_sabaw_line] or sabaw_lines
 
@@ -483,7 +464,6 @@ async def sabaw_line(ctx: commands.Context):
     _last_sabaw_intro = chosen_intro
     _last_sabaw_line = chosen_line
         
-    # dramatic sabaw bot loading
     thinking = await ctx.send("🤖 diagnosing emotional damage...")
     await asyncio.sleep(1.2)
     await thinking.edit(content="🩻 calculating iq deficit... please wait...")
@@ -495,7 +475,8 @@ async def sabaw_line(ctx: commands.Context):
 async def sabaw_line_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
-        
+
+# --- Who Command ---
 @bot.command(name="who")
 @commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def who(ctx: commands.Context):
@@ -504,7 +485,7 @@ async def who(ctx: commands.Context):
     pool = online_members or all_members
 
     if not pool:
-        await ctx.send("⚠️ walang tao dito... server ghost town na 💀")
+        await ctx.send("walang tao dito... server ghost town na 💀")
         return
         
     chosen = random.choice(pool)
@@ -539,7 +520,8 @@ async def who(ctx: commands.Context):
 async def who_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
-        
+
+# --- Roast Command ---
 @bot.command(name="roast")
 @commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def roast(ctx: commands.Context, member: Optional[discord.Member] = None):
@@ -609,6 +591,7 @@ async def roast_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
 
+# --- Help Command ---
 @bot.command(name="helpme")
 @commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def helpme(ctx: commands.Context):
@@ -646,14 +629,12 @@ async def helpme_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ {ctx.author.mention}, puro ping. kalma, ayaw? try again in `{error.retry_after:.1f}s`.")
 
-# --- Run Bot (Render-ready) ---
+# RUN BOT
 if __name__ == "__main__":
-    # Start Flask web server to keep Render alive
     Thread(target=run_web).start()
 
     token = os.getenv("DISCORD_TOKEN")
     if not token:
-        raise RuntimeError("❌ DISCORD_TOKEN not found! Set it in Render Environment Variables.")
+        raise RuntimeError("DISCORD_TOKEN not found! Set it in Render Environment Variables.")
 
-    # Run your Discord bot
     bot.run(token)
