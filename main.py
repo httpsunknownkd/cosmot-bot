@@ -36,7 +36,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 _last_sabaw_line: Optional[str] = None
 _last_sabaw_intro: Optional[str] = None
-_autoresponder_last_seen: dict = {} # user_id -> timestamp
+_autoresponder_last_seen: dict = {}  # user_id -> timestamp
 
 # Roles / Channel IDs
 VERIFY_ROLE_NAME = "certified tambayers ⋆ ˙ ⟡ .ᐟ"
@@ -284,12 +284,25 @@ async def announce(ctx: commands.Context, mode: str = "off", *, input_message: s
 
         sent = await ctx.send(content=mention_text, embed=embed)
 
-        for emoji in emojis:
+        # --- SAFE REACTION LOOP WITH 429 HANDLING ---
+        for i, emoji in enumerate(emojis):
             try:
                 await sent.add_reaction(emoji)
-                await asyncio.sleep(0.3)
-            except discord.HTTPException:
-                logger.warning(f"Couldn't add emoji: {emoji}")
+                if i < len(emojis) - 1:
+                    await asyncio.sleep(0.5)  # safer delay
+            except discord.Forbidden:
+                logger.warning(f"Missing permissions to add reaction: {emoji}")
+            except discord.HTTPException as e:
+                if e.status == 429:
+                    retry_after = e.retry_after or 1.5
+                    logger.warning(f"Rate limited on reaction {emoji}. Retrying after {retry_after}s")
+                    await asyncio.sleep(retry_after)
+                    try:
+                        await sent.add_reaction(emoji)
+                    except Exception:
+                        pass
+                else:
+                    logger.warning(f"Failed to add reaction {emoji}: {e}")
                 
         try:
             await ctx.message.delete()
@@ -313,12 +326,25 @@ async def say_plain(ctx: commands.Context, *, message: str):
     content = text or title or "*No message provided.*"
     sent = await ctx.send(content.strip())
 
-    for emoji in emojis:
+    # --- SAFE REACTION LOOP WITH 429 HANDLING ---
+    for i, emoji in enumerate(emojis):
         try:
             await sent.add_reaction(emoji)
-            await asyncio.sleep(0.3)
-        except discord.HTTPException:
-            logger.warning(f"Could not add emoji: {emoji}")
+            if i < len(emojis) - 1:
+                await asyncio.sleep(0.5)
+        except discord.Forbidden:
+            logger.warning(f"Missing permissions to add reaction: {emoji}")
+        except discord.HTTPException as e:
+            if e.status == 429:
+                retry_after = e.retry_after or 1.5
+                logger.warning(f"Rate limited on reaction {emoji}. Retrying after {retry_after}s")
+                await asyncio.sleep(retry_after)
+                try:
+                    await sent.add_reaction(emoji)
+                except Exception:
+                    pass
+            else:
+                logger.warning(f"Failed to add reaction {emoji}: {e}")
                 
 @say_plain.error
 async def say_plain_error(ctx: commands.Context, error):
@@ -351,7 +377,7 @@ async def boosters(ctx: commands.Context):
         title="🛋️ ♯ 𝘀𝗮𝗯𝗮𝘄 𝘀𝘂𝗴𝗮𝗿 𝗿𝗼𝗹𝗹-𝗰𝗮𝗹𝗹 .ᐟ",
         description=description,
         color=discord.Color.from_str("#E75480")
-        )
+    )
 
     embed.set_image(url="https://drive.google.com/uc?export=view&id=1EiqxDE1P2GpbHMSab6pWAZwNkwvGprN_")
     embed.set_footer(text="these boosters boiled in the sabaw — now they season the soup. 🍥")
@@ -455,8 +481,8 @@ async def sabaw_line(ctx: commands.Context):
         "sabog ako IRL, kaya sabaw din sa server. balance lang."
     ]
 
-    intro_choices = [x for x in intro_lines if x != last_sabaw_intro] or intro_lines
-    line_choices = [x for x in sabaw_lines if x != last_sabaw_line] or sabaw_lines
+    intro_choices = [x for x in intro_lines if x != _last_sabaw_intro] or intro_lines
+    line_choices = [x for x in sabaw_lines if x != _last_sabaw_line] or sabaw_lines
 
     chosen_intro = random.choice(intro_choices)
     chosen_line = random.choice(line_choices)
@@ -598,7 +624,7 @@ async def helpme(ctx: commands.Context):
     embed = discord.Embed(
         title=" :cosmos: ♯ 𝗰𝗼𝘀𝗺𝗼𝘀 𝗯𝗼𝘁 𝗰𝗼𝗺𝗺𝗮𝗻𝗱𝘀 .ᐟ",
         description="welcome to the soup! the commands below will help you swim, float, and maybe win a race or two.",
-        color=discord.Color.from_str("##E75480")
+        color=discord.Color.from_str("#E75480")  # Fixed extra '#'
     )
 
     embed.add_field(
