@@ -52,7 +52,7 @@ async def on_ready():
     try:
         bot.add_view(VerifyButton())
     except Exception:
-        logger.exception("Failed to add persistent view")
+        logger.exception("Failed to add persistent view.")
 
 # Parsing Helpers
 def parse_announcement_input(input_str):
@@ -74,7 +74,7 @@ async def on_member_join(member: discord.Member):
     channel = bot.get_channel(WELCOME_CHANNEL_ID)
     if not isinstance(channel, TextChannel):
         if VERBOSE_LOGS:
-            logger.warning("Welcome channel not found or not a TextChannel")
+            logger.warning("Welcome channel not found or not a TextChannel.")
         return
 
     embed = discord.Embed(
@@ -92,7 +92,7 @@ async def on_member_join(member: discord.Member):
     try:
         await channel.send(embed=embed)
     except Exception:
-        logger.exception("Failed to send welcome embed")
+        logger.exception("Failed to send welcome embed.")
 
 # Verify Button View
 class VerifyButton(discord.ui.View):
@@ -143,7 +143,7 @@ async def send_verify_message(ctx: commands.Context):
     try:
         await ctx.send(embed=embed, view=VerifyButton())
     except Exception:
-        logger.exception("Failed to send verify embed")
+        logger.exception("Failed to send verify embed.")
 
 # Booster Spotted
 @bot.event
@@ -180,7 +180,7 @@ async def on_member_update(before: discord.Member, after: discord.Member):
             await channel.send(embed=embed)
             logger.info("Boost notification sent!")
         except Exception:
-            logger.exception("Failed to send boost embed")
+            logger.exception("Failed to send boost embed.")
 
 # Leaver
 @bot.event
@@ -211,7 +211,7 @@ async def on_member_remove(member: discord.Member):
     try:
         await channel.send(embed=embed)
     except Exception:
-        logger.exception("Failed to send goodbye embed")
+        logger.exception("Failed to send goodbye embed.")
 
 # AUTORESPONDER
 
@@ -251,7 +251,7 @@ async def on_message(message: discord.Message):
                 if VERBOSE_LOGS:
                     logger.info(f"Autoresponded to {message.author} in {message.channel}")
             except discord.HTTPException:
-                logger.exception("Failed to autorespond")
+                logger.exception("Failed to autorespond.")
 
 # COMMANDS
 # --- Announcement Command ---
