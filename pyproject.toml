@@ -3,7 +3,7 @@ name = "cosmos-bot"
 version = "0.1.0"
 description = "discord + flask project"
 authors = [
-    { name = "Gisella Katriez", email = "author@stargirlkady.ph" }
+    { name = "Gisella Katriez", email = "contact@stargirlkady.ph" }
 ]
 requires-python = ">=3.11"
 
